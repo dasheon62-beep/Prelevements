@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5d7a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Prélèvements Eau</title>
+<style>
+/* Concept : carnet de terrain à une main. Bleu eau profond, et le rose du réactif DPD
+   (la couleur que prend l'échantillon quand il contient du chlore) réservé au champ chlore. */
+:root{
+  --bg:#eef4f6; --surface:#ffffff; --ink:#0c2430; --muted:#506b77; --line:#d3e0e5;
+  --brand:#0b5d7a; --brand-ink:#ffffff; --soft:#e1eef3;
+  --dpd:#c2185b; --dpd-soft:#fbe4ee;
+  --ok:#17784a; --ok-soft:#dff3e8; --warn:#9a5b00; --warn-soft:#fdeccd; --bad:#b3261e; --bad-soft:#fbe1de;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#091419; --surface:#10222a; --ink:#e4f0f4; --muted:#8aa5b0; --line:#21393f;
+  --brand:#4db6d6; --brand-ink:#041c25; --soft:#173039;
+  --dpd:#ff72a8; --dpd-soft:#3a1626;
+  --ok:#5bd08f; --ok-soft:#12301f; --warn:#f0b04a; --warn-soft:#33260c; --bad:#ff8a80; --bad-soft:#3b1815;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#091419; --surface:#10222a; --ink:#e4f0f4; --muted:#8aa5b0; --line:#21393f;
+  --brand:#4db6d6; --brand-ink:#041c25; --soft:#173039;
+  --dpd:#ff72a8; --dpd-soft:#3a1626;
+  --ok:#5bd08f; --ok-soft:#12301f; --warn:#f0b04a; --warn-soft:#33260c; --bad:#ff8a80; --bad-soft:#3b1815;
+  color-scheme:dark}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(150px + env(safe-area-inset-bottom,0px));
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:560px;margin:0 auto}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0 10px}
+header.top h1{margin:0;font-size:1.25rem;letter-spacing:-.01em}
+header.top p{margin:2px 0 0;color:var(--muted);font-size:.85rem}
+.net{font-size:.75rem;padding:4px 10px;border-radius:99px;background:var(--ok-soft);color:var(--ok);white-space:nowrap;font-weight:600}
+.net.off{background:var(--warn-soft);color:var(--warn)}
+
+section[hidden]{display:none}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{margin:0 0 10px;font-size:.78rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1 1 130px;min-width:0}
+label.f{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin:0 0 5px}
+.in{width:100%;min-height:52px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);font-size:1.1rem}
+.in:focus{border-color:var(--brand);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 25%,transparent)}
+textarea.in{min-height:76px;resize:vertical;font-size:1rem}
+.in.flag{border-color:var(--warn);background:var(--warn-soft)}
+.unit{font-weight:500;font-size:.78rem;color:var(--muted);margin-left:3px}
+.stack{display:flex;flex-direction:column;gap:12px}
+
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:44px;padding:8px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--bg);cursor:pointer;font-weight:600;font-size:.95rem}
+.chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.chip.small{min-height:38px;padding:6px 12px;font-size:.88rem}
+
+.btn{min-height:50px;padding:10px 18px;border-radius:12px;border:1.5px solid var(--brand);background:transparent;color:var(--brand);font-weight:700;cursor:pointer}
+.btn.fill{background:var(--brand);color:var(--brand-ink)}
+.btn.bad{border-color:var(--bad);color:var(--bad)}
+.btn.bad.armed{background:var(--bad);color:#fff}
+.btn:active{transform:scale(.98)}
+.btn.sm{min-height:42px;padding:6px 14px;font-size:.9rem}
+
+.gps{display:flex;gap:10px;align-items:stretch}
+.gps .in{font-family:var(--mono);font-size:.95rem}
+.gps .btn{flex:0 0 auto}
+.hint{font-size:.8rem;color:var(--muted);margin:6px 0 0}
+.hint.good{color:var(--ok)} .hint.badx{color:var(--bad)}
+
+/* Chlore : comparateur de couleurs façon kit DPD */
+.cl-card{border-color:color-mix(in srgb,var(--dpd) 45%,var(--line))}
+.cl-card h2{color:var(--dpd)}
+.cl-top{display:flex;gap:12px;align-items:center}
+.cl-top .in{font-size:2rem;font-weight:700;min-height:68px;text-align:center;font-variant-numeric:tabular-nums;border-color:var(--dpd);flex:1 1 auto;min-width:0}
+.cl-top .u{font-weight:700;color:var(--muted);flex:0 0 auto}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:.78rem;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.none{background:var(--soft);color:var(--muted)}
+.cmp{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:12px}
+.cmp button{min-height:48px;border-radius:10px;border:1.5px solid color-mix(in srgb,var(--dpd) 35%,var(--line));
+  background:color-mix(in srgb,var(--dpd) var(--i),var(--surface));font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
+.cmp button[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:1px}
+
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{width:52px;height:52px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);font-size:1.5rem;font-weight:700;cursor:pointer}
+.stepper input{text-align:center;width:70px;flex:0 0 auto}
+
+.savebar{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom,0px));
+  padding:10px max(16px,env(safe-area-inset-left,0px)) 10px max(16px,env(safe-area-inset-right,0px));
+  background:linear-gradient(to top,var(--bg) 70%,transparent)}
+.savebar .btn{width:100%;max-width:560px;display:block;margin:0 auto;min-height:56px;font-size:1.1rem}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-top:1px solid var(--line);
+  padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+nav.tabs button{min-height:62px;border:0;background:none;font-weight:700;font-size:.82rem;color:var(--muted);cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:var(--brand);box-shadow:inset 0 3px 0 var(--brand)}
+nav.tabs small{display:block;font-size:1.3rem;line-height:1.2}
+
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;gap:10px;justify-content:space-between;align-items:center;font-weight:600;font-size:.9rem}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat b{display:block;font-size:1.6rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:.75rem;color:var(--muted)}
+.day{font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:16px 2px 8px;display:flex;justify-content:space-between}
+.it{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.it>button{display:flex;width:100%;gap:12px;align-items:center;text-align:left;padding:12px;border:0;background:none;cursor:pointer;min-height:64px}
+.it .t{font-family:var(--mono);font-size:.85rem;color:var(--muted);flex:0 0 auto}
+.it .m{flex:1 1 auto;min-width:0}
+.it .m b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it .m span{font-size:.82rem;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it .v{flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums}
+.it .v b{font-size:1.15rem;display:block}
+.det{padding:4px 12px 12px;border-top:1px dashed var(--line)}
+.det dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0;font-size:.9rem}
+.det dt{color:var(--muted)} .det dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.empty{text-align:center;color:var(--muted);padding:36px 12px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);
+  padding:12px 18px;border-radius:12px;font-weight:600;max-width:90vw;z-index:20;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast[hidden]{display:none}
+h3.s{margin:0 0 8px;font-size:1rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div>
+    <h1>Prélèvements d’eau</h1>
+    <p id="sub">Wilaya de Bouira</p>
+  </div>
+  <span class="net" id="net">Enregistré sur le téléphone</span>
+</header>
+
+<!-- ================= SAISIE ================= -->
+<section id="view-saisie">
+  <div class="banner" id="editBanner" hidden>
+    <span id="editTxt"></span>
+    <button class="btn sm" id="cancelEdit" type="button">Annuler</button>
+  </div>
+
+  <div class="card">
+    <h2>Où</h2>
+    <div class="stack">
+      <div>
+        <label class="f" for="commune">Commune</label>
+        <select class="in" id="commune"></select>
+        <div class="chips" id="recent" style="margin-top:8px"></div>
+        <div id="newCommuneBox" hidden style="margin-top:8px" class="gps">
+          <input class="in" id="communeNew" placeholder="Nom de la commune" autocomplete="off">
+          <button class="btn fill" id="communeAdd" type="button">Ajouter</button>
+        </div>
+      </div>
+      <div>
+        <label class="f" for="adresse">Adresse / lieu du prélèvement</label>
+        <input class="in" id="adresse" list="adrList" placeholder="ex. Cité 200 logements, bloc B" autocomplete="off">
+        <datalist id="adrList"></datalist>
+      </div>
+      <div>
+        <label class="f">Type de point</label>
+        <div class="chips" id="types"></div>
+      </div>
+      <div>
+        <label class="f" for="gps">Position GPS</label>
+        <div class="gps">
+          <input class="in" id="gps" inputmode="decimal" placeholder="latitude, longitude" autocomplete="off">
+          <button class="btn" id="gpsBtn" type="button">Position</button>
+        </div>
+        <p class="hint" id="gpsHint">Appuyez sur Position, ou collez des coordonnées.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card cl-card">
+    <h2>Chlore résiduel libre</h2>
+    <div class="cl-top">
+      <input class="in" id="cl" inputmode="decimal" placeholder="0.00" autocomplete="off" aria-label="Chlore résiduel libre en mg/L">
+      <span class="u">mg/L</span>
+    </div>
+    <div style="margin-top:8px"><span class="pill none" id="clStatus">Pas de mesure</span></div>
+    <div class="cmp" id="cmp"></div>
+  </div>
+
+  <div class="card">
+    <h2>Autres mesures (facultatif)</h2>
+    <div class="two">
+      <div><label class="f" for="ph">pH</label><input class="in" id="ph" inputmode="decimal" placeholder="7.4" autocomplete="off"></div>
+      <div><label class="f" for="temp">Température<span class="unit">°C</span></label><input class="in" id="temp" inputmode="decimal" placeholder="18" autocomplete="off"></div>
+      <div><label class="f" for="turb">Turbidité<span class="unit">NTU</span></label><input class="in" id="turb" inputmode="decimal" placeholder="0.6" autocomplete="off"></div>
+      <div><label class="f" for="cond">Conductivité<span class="unit">µS/cm</span></label><input class="in" id="cond" inputmode="decimal" placeholder="750" autocomplete="off"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Échantillon</h2>
+    <div class="stack">
+      <div>
+        <label class="f">Analyses demandées</label>
+        <div class="chips" id="analyses"></div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="f" for="flacons">Nombre de flacons</label>
+          <div class="stepper">
+            <button type="button" id="flMinus" aria-label="Un flacon de moins">−</button>
+            <input class="in" id="flacons" inputmode="numeric" value="1" aria-label="Nombre de flacons">
+            <button type="button" id="flPlus" aria-label="Un flacon de plus">+</button>
+          </div>
+        </div>
+        <div>
+          <label class="f" for="ts">Date et heure</label>
+          <input class="in" id="ts" type="datetime-local" style="font-size:1rem">
+        </div>
+      </div>
+      <div>
+        <label class="f" for="num">N° d’échantillon</label>
+        <input class="in" id="num" autocomplete="off" style="font-family:var(--mono)">
+      </div>
+      <div>
+        <label class="f" for="obs">Observations</label>
+        <textarea class="in" id="obs" placeholder="Odeur, couleur, état du robinet, remarque de l’habitant…"></textarea>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= JOURNAL ================= -->
+<section id="view-journal" hidden>
+  <div class="stats">
+    <div class="stat"><b id="stN">0</b><span>prélèvements</span></div>
+    <div class="stat"><b id="stC">0</b><span>communes</span></div>
+    <div class="stat"><b id="stH">0</b><span>chlore hors cible</span></div>
+  </div>
+  <div class="chips" id="period" style="margin-bottom:10px"></div>
+  <input class="in" id="q" type="search" placeholder="Chercher une commune, une adresse…" style="margin-bottom:10px;font-size:1rem">
+  <div class="acts" style="margin-bottom:6px">
+    <button class="btn fill sm" id="expCsv" type="button">Exporter en CSV</button>
+    <button class="btn sm" id="shareCsv" type="button">Partager</button>
+  </div>
+  <div id="list"></div>
+</section>
+
+<!-- ================= REGLAGES ================= -->
+<section id="view-reglages" hidden>
+  <div class="card">
+    <h2>Préleveur</h2>
+    <label class="f" for="agent">Votre nom (ajouté à chaque ligne)</label>
+    <input class="in" id="agent" autocomplete="name">
+  </div>
+  <div class="card">
+    <h2>Seuils d’alerte</h2>
+    <p class="hint" style="margin:0 0 10px">Valeurs indicatives. Remplacez-les par celles de votre laboratoire ou de la réglementation en vigueur.</p>
+    <div class="two">
+      <div><label class="f" for="clMin">Chlore min<span class="unit">mg/L</span></label><input class="in" id="clMin" inputmode="decimal"></div>
+      <div><label class="f" for="clMax">Chlore max<span class="unit">mg/L</span></label><input class="in" id="clMax" inputmode="decimal"></div>
+      <div><label class="f" for="phMin">pH min</label><input class="in" id="phMin" inputmode="decimal"></div>
+      <div><label class="f" for="phMax">pH max</label><input class="in" id="phMax" inputmode="decimal"></div>
+      <div><label class="f" for="turbMax">Turbidité max<span class="unit">NTU</span></label><input class="in" id="turbMax" inputmode="decimal"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Sauvegarde</h2>
+    <p class="hint" style="margin:0 0 10px">Les données sont dans ce téléphone. Faites une sauvegarde de temps en temps.</p>
+    <div class="acts">
+      <button class="btn sm" id="bkExp" type="button">Sauvegarder (JSON)</button>
+      <button class="btn sm" id="bkImpBtn" type="button">Restaurer</button>
+      <input type="file" id="bkImp" accept=".json,application/json" hidden>
+    </div>
+    <div class="acts" style="margin-top:14px">
+      <button class="btn sm" id="install" type="button" hidden>Installer l’application</button>
+      <button class="btn bad sm" id="wipe" type="button">Tout effacer</button>
+    </div>
+  </div>
+  <p class="hint" style="text-align:center">Fonctionne sans internet une fois installée.</p>
+</section>
+</div>
+
+<div class="savebar" id="savebar">
+  <button class="btn fill" id="save" type="button">Enregistrer le prélèvement</button>
+</div>
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="saisie" aria-selected="true"><small aria-hidden="true">＋</small>Saisie</button>
+  <button role="tab" data-tab="journal" aria-selected="false"><small aria-hidden="true">≡</small>Journal</button>
+  <button role="tab" data-tab="reglages" aria-selected="false"><small aria-hidden="true">⚙</small>Réglages</button>
+</nav>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var LS={
+  get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){toast("Stockage plein ou bloqué");return false}}
+};
+
+var COMMUNES=["Aghbalou","Aïn Bessem","Aïn El Hadjar","Aïn Laloui","Aïn Turk","Ahl El Ksar","Aomar","Bechloul","Bir Ghbalou","Bordj Okhriss","Bouderbala","Bouira","Boukram","Chorfa","Dechmia","Dirrah","Djebahia","El Adjiba","El Asnam","El Hachimia","El Hakimia","El Khebouzia","El Mokrani","Guerrouma","Haizer","Hanif","Kadiria","Lakhdaria","Maâmora","Maala","M'Chedallah","Oued El Berdi","Raouraoua","Ridane","Saharidj","Souk El Khemis","Sour El Ghozlane","Taghzout","Taguedit","Zbarbar","Ath Mansour"];
+var TYPES=["Robinet","Réservoir","Château d’eau","Forage","Source","Conduite","Station de pompage"];
+var ANALYSES=["Bactériologique","Physico-chimique"];
+var CMP=["0","0.1","0.2","0.3","0.4","0.5","0.6","0.7","0.8","0.9","1.0"];
+
+var S=Object.assign({agent:"",clMin:0.2,clMax:0.5,phMin:6.5,phMax:9,turbMax:5,communes:[]},LS.get("prel.settings",{}));
+var DATA=LS.get("prel.data",[]);
+if(!Array.isArray(DATA))DATA=[];
+var ui={tab:"saisie",editing:null,type:"",analyses:[],acc:null,filter:"today",q:"",open:null,armed:null,wipeArmed:false,gpsBusy:false};
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]})}
+function pad(n,l){n=String(n);while(n.length<(l||2))n="0"+n;return n}
+function nowLocal(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes())}
+function num(s){if(s==null||String(s).trim()==="")return null;var n=parseFloat(String(s).replace(",","."));return isNaN(n)?null:n}
+function fmt(n,d){return n==null?"":(d==null?String(n):n.toFixed(d)).replace(".",",")}
+function toast(m){var t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){t.hidden=true},2600)}
+function saveData(){return LS.set("prel.data",DATA)}
+function saveSettings(){LS.set("prel.settings",S)}
+function allCommunes(){var s={};COMMUNES.concat(S.communes).forEach(function(c){s[c]=1});return Object.keys(s).sort(function(a,b){return a.localeCompare(b,"fr")})}
+
+function clEval(v){
+  if(v==null)return {k:"none",t:"Pas de mesure"};
+  if(v<S.clMin)return {k:"bad",t:"Trop bas"};
+  if(v>S.clMax)return {k:"warn",t:"Trop élevé"};
+  return {k:"ok",t:"Dans la cible"};
+}
+
+/* ---------- chips ---------- */
+function drawChips(id,opts,isOn,onTap,small){
+  var el=$(id);el.innerHTML="";
+  opts.forEach(function(o){
+    var b=document.createElement("button");b.type="button";b.className="chip"+(small?" small":"");b.textContent=o;
+    b.setAttribute("aria-pressed",isOn(o)?"true":"false");
+    b.addEventListener("click",function(){onTap(o);drawChips(id,opts,isOn,onTap,small)});
+    el.appendChild(b);
+  });
+}
+function drawTypes(){drawChips("types",TYPES,function(o){return ui.type===o},function(o){ui.type=ui.type===o?"":o});}
+function drawAnalyses(){drawChips("analyses",ANALYSES,function(o){return ui.analyses.indexOf(o)>-1},function(o){var i=ui.analyses.indexOf(o);if(i>-1)ui.analyses.splice(i,1);else ui.analyses.push(o)});}
+function drawCmp(){
+  var el=$("cmp");el.innerHTML="";
+  var cur=num($("cl").value);
+  CMP.forEach(function(v,i){
+    var b=document.createElement("button");b.type="button";b.textContent=v.replace(".",",");
+    b.style.setProperty("--i",(4+i*8)+"%");
+    b.setAttribute("aria-pressed",cur!=null&&Math.abs(cur-parseFloat(v))<1e-9?"true":"false");
+    b.addEventListener("click",function(){$("cl").value=v;refreshFlags()});
+    el.appendChild(b);
+  });
+}
+
+/* ---------- communes ---------- */
+function drawCommunes(sel){
+  var el=$("commune"),cur=sel!=null?sel:el.value;
+  var h='<option value="">Choisir une commune…</option>';
+  allCommunes().forEach(function(c){h+='<option value="'+esc(c)+'">'+esc(c)+'</option>'});
+  h+='<option value="__new">＋ Autre commune…</option>';
+  el.innerHTML=h;el.value=cur||"";
+  if(el.value!==(cur||""))el.value="";
+  drawRecent();drawAddresses();
+}
+function recentCommunes(){
+  var seen=[],sorted=DATA.slice().sort(function(a,b){return a.ts<b.ts?1:-1});
+  for(var i=0;i<sorted.length&&seen.length<5;i++){if(seen.indexOf(sorted[i].commune)<0)seen.push(sorted[i].commune)}
+  return seen;
+}
+function drawRecent(){
+  var r=recentCommunes();
+  drawChips("recent",r,function(o){return $("commune").value===o},function(o){$("commune").value=o;drawAddresses()},true);
+  $("recent").hidden=r.length===0;
+}
+function drawAddresses(){
+  var c=$("commune").value,seen={},out=[];
+  DATA.slice().sort(function(a,b){return a.ts<b.ts?1:-1}).forEach(function(d){
+    if(d.commune===c&&d.adresse&&!seen[d.adresse]&&out.length<40){seen[d.adresse]=1;out.push(d.adresse)}
+  });
+  $("adrList").innerHTML=out.map(function(a){return '<option value="'+esc(a)+'">'}).join("");
+}
+
+/* ---------- GPS ---------- */
+function setHint(msg,cls){var h=$("gpsHint");h.textContent=msg;h.className="hint"+(cls?" "+cls:"")}
+function getGPS(silent){
+  if(!navigator.geolocation){setHint("Le GPS n’est pas disponible sur cet appareil.","badx");return}
+  if(ui.gpsBusy)return;ui.gpsBusy=true;
+  $("gpsBtn").textContent="Recherche…";setHint("Recherche du signal GPS…");
+  navigator.geolocation.getCurrentPosition(function(p){
+    ui.gpsBusy=false;$("gpsBtn").textContent="Position";
+    $("gps").value=p.coords.latitude.toFixed(6)+", "+p.coords.longitude.toFixed(6);
+    ui.acc=Math.round(p.coords.accuracy);
+    setHint("Précision ± "+ui.acc+" m"+(ui.acc>30?" (attendez un peu et réessayez pour mieux)":""),ui.acc>30?"":"good");
+  },function(e){
+    ui.gpsBusy=false;$("gpsBtn").textContent="Position";
+    var m=e.code===1?"GPS refusé. Autorisez la localisation dans les réglages du navigateur.":e.code===3?"Signal GPS trop lent. Réessayez à l’extérieur.":"Position introuvable.";
+    setHint(silent&&e.code===1?"Appuyez sur Position pour autoriser le GPS.":m,silent?"":"badx");
+  },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+function parseGps(){
+  var m=$("gps").value.match(/(-?\d+(?:[.,]\d+)?)\s*[;, ]\s*(-?\d+(?:[.,]\d+)?)/);
+  if(!m)return null;
+  var la=parseFloat(m[1].replace(",",".")),lo=parseFloat(m[2].replace(",","."));
+  if(isNaN(la)||isNaN(lo)||Math.abs(la)>90||Math.abs(lo)>180)return null;
+  return {lat:la,lng:lo};
+}
+
+/* ---------- form ---------- */
+function newNum(ts){
+  var day=(ts||nowLocal()).slice(0,10),n=1;
+  DATA.forEach(function(d){if((d.ts||"").slice(0,10)===day)n++});
+  var base=day.replace(/-/g,"").slice(2),num=base+"-"+pad(n,3);
+  var used={};DATA.forEach(function(d){used[d.num]=1});
+  while(used[num]){n++;num=base+"-"+pad(n,3)}
+  return num;
+}
+function refreshFlags(){
+  var v=num($("cl").value),e=clEval(v);
+  var p=$("clStatus");p.className="pill "+e.k;p.textContent=e.t+(v!=null&&e.k!=="ok"?" ("+fmt(v)+")":"");
+  drawCmp();
+  var ph=num($("ph").value);$("ph").classList.toggle("flag",ph!=null&&(ph<S.phMin||ph>S.phMax));
+  var tu=num($("turb").value);$("turb").classList.toggle("flag",tu!=null&&tu>S.turbMax);
+}
+function resetForm(keep){
+  keep=keep||{};
+  $("adresse").value=keep.adresse||"";
+  $("gps").value=keep.gps||"";
+  ["cl","ph","temp","turb","cond","obs"].forEach(function(k){$(k).value=""});
+  $("flacons").value="1";
+  $("ts").value=nowLocal();
+  $("num").value=newNum($("ts").value);
+  ui.editing=null;ui.acc=keep.acc||null;
+  $("editBanner").hidden=true;
+  $("save").textContent="Enregistrer le prélèvement";
+  setHint(keep.gps?"Position reprise du prélèvement précédent.":"Appuyez sur Position, ou collez des coordonnées.");
+  refreshFlags();
+}
+function readForm(){
+  var g=parseGps();
+  return {
+    ts:$("ts").value||nowLocal(),num:$("num").value.trim(),
+    commune:$("commune").value,adresse:$("adresse").value.trim(),type:ui.type,analyses:ui.analyses.slice(),
+    lat:g?g.lat:null,lng:g?g.lng:null,acc:g?ui.acc:null,
+    cl:num($("cl").value),ph:num($("ph").value),temp:num($("temp").value),turb:num($("turb").value),cond:num($("cond").value),
+    flacons:parseInt($("flacons").value,10)||1,obs:$("obs").value.trim(),agent:S.agent
+  };
+}
+function loadForm(d,asNew){
+  drawCommunes(d.commune);
+  $("adresse").value=d.adresse||"";
+  ui.type=d.type||"";ui.analyses=(d.analyses||[]).slice();drawTypes();drawAnalyses();
+  $("gps").value=d.lat!=null?d.lat.toFixed(6)+", "+d.lng.toFixed(6):"";ui.acc=d.acc||null;
+  setHint(d.acc?"Précision ± "+d.acc+" m":"Appuyez sur Position, ou collez des coordonnées.");
+  ["cl","ph","temp","turb","cond"].forEach(function(k){$(k).value=asNew||d[k]==null?"":String(d[k])});
+  $("flacons").value=String(d.flacons||1);$("obs").value=asNew?"":(d.obs||"");
+  $("ts").value=asNew?nowLocal():d.ts;$("num").value=asNew?newNum(nowLocal()):d.num;
+  refreshFlags();
+}
+function saveSample(){
+  var o=readForm();
+  if(!o.commune||o.commune==="__new"){toast("Choisissez la commune");$("commune").focus();return}
+  if(o.cl==null&&o.ph==null&&o.temp==null&&o.turb==null&&o.cond==null&&!o.adresse){toast("Ajoutez au moins une adresse ou une mesure");return}
+  var msg;
+  if(ui.editing){
+    var i=DATA.findIndex(function(d){return d.id===ui.editing});
+    if(i>-1){o.id=ui.editing;DATA[i]=o}
+    msg="Modifié : "+o.num;
+  }else{
+    o.id="p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    DATA.push(o);msg="Enregistré : "+o.num;
+  }
+  if(!saveData())return;
+  var wasEdit=!!ui.editing;
+  toast(msg);
+  resetForm();drawCommunes($("commune").value);
+  window.scrollTo(0,0);
+  if(wasEdit)setTab("journal");else getGPS(true);
+  updateSub();
+}
+
+/* ---------- journal ---------- */
+function dayKey(ts){return ts.slice(0,10)}
+function inPeriod(d){
+  var today=nowLocal().slice(0,10);
+  if(ui.filter==="all")return true;
+  if(ui.filter==="today")return dayKey(d.ts)===today;
+  var t=new Date(today+"T00:00:00");
+  if(ui.filter==="yesterday"){t.setDate(t.getDate()-1);return dayKey(d.ts)===t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())}
+  if(ui.filter==="week"){t.setDate(t.getDate()-6);return d.ts>=t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())+"T00:00"}
+  return true;
+}
+function filtered(){
+  var q=ui.q.trim().toLowerCase();
+  return DATA.filter(function(d){
+    if(!inPeriod(d))return false;
+    if(!q)return true;
+    return (d.commune+" "+d.adresse+" "+d.num+" "+d.type+" "+d.obs).toLowerCase().indexOf(q)>-1;
+  }).sort(function(a,b){return a.ts<b.ts?1:-1});
+}
+function dayLabel(k){
+  var d=new Date(k+"T12:00:00");
+  return d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+}
+function mapUrl(d){return "https://www.google.com/maps?q="+d.lat+","+d.lng}
+function drawJournal(){
+  var L=filtered();
+  var cs={},hors=0;
+  L.forEach(function(d){cs[d.commune]=1;var e=clEval(d.cl);if(e.k==="bad"||e.k==="warn")hors++});
+  $("stN").textContent=L.length;$("stC").textContent=Object.keys(cs).length;$("stH").textContent=hors;
+  var h="",last="";
+  if(!L.length)h='<div class="empty">Aucun prélèvement pour cette période.</div>';
+  var counts={};L.forEach(function(d){counts[dayKey(d.ts)]=(counts[dayKey(d.ts)]||0)+1});
+  L.forEach(function(d){
+    var k=dayKey(d.ts);
+    if(k!==last){h+='<div class="day"><span>'+esc(dayLabel(k))+'</span><span>'+counts[k]+'</span></div>';last=k}
+    var e=clEval(d.cl),open=ui.open===d.id;
+    h+='<div class="it"><button type="button" data-open="'+d.id+'" aria-expanded="'+open+'">'+
+      '<span class="t">'+esc(d.ts.slice(11,16))+'</span>'+
+      '<span class="m"><b>'+esc(d.commune)+'</b><span>'+esc(d.adresse||d.type||"Sans adresse")+'</span></span>'+
+      '<span class="v">'+(d.cl!=null?'<b>'+esc(fmt(d.cl))+'</b>':'<b>–</b>')+'<span class="pill '+e.k+'">'+(d.cl!=null?esc(e.t):"mg/L")+'</span></span></button>';
+    if(open){
+      h+='<div class="det"><dl>'+
+        '<dt>N°</dt><dd>'+esc(d.num)+'</dd>'+
+        (d.type?'<dt>Point</dt><dd>'+esc(d.type)+'</dd>':'')+
+        (d.lat!=null?'<dt>GPS</dt><dd>'+d.lat.toFixed(5)+', '+d.lng.toFixed(5)+(d.acc?' (± '+d.acc+' m)':'')+'</dd>':'')+
+        (d.ph!=null?'<dt>pH</dt><dd>'+esc(fmt(d.ph))+'</dd>':'')+
+        (d.temp!=null?'<dt>Température</dt><dd>'+esc(fmt(d.temp))+' °C</dd>':'')+
+        (d.turb!=null?'<dt>Turbidité</dt><dd>'+esc(fmt(d.turb))+' NTU</dd>':'')+
+        (d.cond!=null?'<dt>Conductivité</dt><dd>'+esc(fmt(d.cond))+' µS/cm</dd>':'')+
+        ((d.analyses||[]).length?'<dt>Analyses</dt><dd>'+esc(d.analyses.join(", "))+'</dd>':'')+
+        '<dt>Flacons</dt><dd>'+esc(d.flacons)+'</dd>'+
+        (d.obs?'<dt>Notes</dt><dd>'+esc(d.obs)+'</dd>':'')+
+        '</dl><div class="acts">'+
+        '<button class="btn sm" data-edit="'+d.id+'" type="button">Modifier</button>'+
+        '<button class="btn sm" data-dup="'+d.id+'" type="button">Même point</button>'+
+        (d.lat!=null?'<a class="btn sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="'+mapUrl(d)+'">Carte</a>':'')+
+        '<button class="btn bad sm'+(ui.armed===d.id?' armed':'')+'" data-del="'+d.id+'" type="button">'+(ui.armed===d.id?'Confirmer ?':'Supprimer')+'</button>'+
+        '</div></div>';
+    }
+    h+='</div>';
+  });
+  $("list").innerHTML=h;
+  drawChips("period",["Aujourd’hui","Hier","7 jours","Tout"],function(o){return ({"Aujourd’hui":"today","Hier":"yesterday","7 jours":"week","Tout":"all"})[o]===ui.filter},function(o){ui.filter=({"Aujourd’hui":"today","Hier":"yesterday","7 jours":"week","Tout":"all"})[o];ui.open=null;drawJournal()},true);
+}
+
+/* ---------- export ---------- */
+function csvCell(v){v=v==null?"":String(v);return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function buildCsv(list){
+  var head=["N°","Date","Heure","Commune","Adresse","Type de point","Latitude","Longitude","Précision GPS (m)","Chlore libre (mg/L)","Statut chlore","pH","Température (°C)","Turbidité (NTU)","Conductivité (µS/cm)","Analyses","Flacons","Observations","Préleveur"];
+  var rows=[head];
+  list.slice().sort(function(a,b){return a.ts<b.ts?-1:1}).forEach(function(d){
+    var p=d.ts.split("T"),dd=p[0].split("-");
+    rows.push([d.num,dd[2]+"/"+dd[1]+"/"+dd[0],p[1],d.commune,d.adresse,d.type,
+      d.lat!=null?String(d.lat).replace(".",","):"",d.lng!=null?String(d.lng).replace(".",","):"",d.acc||"",
+      fmt(d.cl),d.cl!=null?clEval(d.cl).t:"",fmt(d.ph),fmt(d.temp),fmt(d.turb),fmt(d.cond),(d.analyses||[]).join(" + "),d.flacons,d.obs,d.agent]);
+  });
+  return "﻿"+rows.map(function(r){return r.map(csvCell).join(";")}).join("\r\n");
+}
+function fileName(ext){return "prelevements_"+nowLocal().slice(0,10)+"."+ext}
+function downloadBlob(blob,name){
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500);
+}
+function exportCsv(){
+  var L=filtered();if(!L.length){toast("Rien à exporter");return}
+  downloadBlob(new Blob([buildCsv(L)],{type:"text/csv;charset=utf-8"}),fileName("csv"));
+  toast(L.length+" lignes exportées");
+}
+function shareCsv(){
+  var L=filtered();if(!L.length){toast("Rien à partager");return}
+  var f=new File([buildCsv(L)],fileName("csv"),{type:"text/csv"});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){
+    navigator.share({files:[f],title:"Prélèvements d’eau"}).catch(function(){});
+  }else{exportCsv()}
+}
+
+/* ---------- tabs ---------- */
+function setTab(t){
+  ui.tab=t;
+  ["saisie","journal","reglages"].forEach(function(k){$("view-"+k).hidden=k!==t});
+  document.querySelectorAll("nav.tabs button").forEach(function(b){b.setAttribute("aria-selected",b.dataset.tab===t?"true":"false")});
+  $("savebar").hidden=t!=="saisie";
+  if(t==="journal")drawJournal();
+  window.scrollTo(0,0);
+}
+function updateSub(){
+  var today=nowLocal().slice(0,10),n=DATA.filter(function(d){return dayKey(d.ts)===today}).length;
+  $("sub").textContent="Wilaya de Bouira · "+n+" aujourd’hui";
+}
+
+/* ---------- events ---------- */
+document.querySelectorAll("nav.tabs button").forEach(function(b){b.addEventListener("click",function(){setTab(b.dataset.tab)})});
+$("save").addEventListener("click",saveSample);
+$("gpsBtn").addEventListener("click",function(){getGPS(false)});
+$("gps").addEventListener("input",function(){ui.acc=null});
+$("cl").addEventListener("input",refreshFlags);
+["ph","turb"].forEach(function(k){$(k).addEventListener("input",refreshFlags)});
+$("commune").addEventListener("change",function(){
+  var v=$("commune").value;
+  $("newCommuneBox").hidden=v!=="__new";
+  if(v==="__new")$("communeNew").focus();
+  drawRecent();drawAddresses();
+});
+$("communeAdd").addEventListener("click",function(){
+  var n=$("communeNew").value.trim();if(!n)return;
+  if(S.communes.indexOf(n)<0&&COMMUNES.indexOf(n)<0){S.communes.push(n);saveSettings()}
+  $("communeNew").value="";$("newCommuneBox").hidden=true;drawCommunes(n);
+});
+$("flPlus").addEventListener("click",function(){$("flacons").value=(parseInt($("flacons").value,10)||0)+1});
+$("flMinus").addEventListener("click",function(){$("flacons").value=Math.max(1,(parseInt($("flacons").value,10)||1)-1)});
+$("ts").addEventListener("change",function(){if(!ui.editing)$("num").value=newNum($("ts").value)});
+$("cancelEdit").addEventListener("click",function(){resetForm();setTab("journal")});
+$("q").addEventListener("input",function(){ui.q=$("q").value;drawJournal()});
+$("expCsv").addEventListener("click",exportCsv);
+$("shareCsv").addEventListener("click",shareCsv);
+
+$("list").addEventListener("click",function(e){
+  var t=e.target.closest("[data-open],[data-edit],[data-dup],[data-del]");if(!t)return;
+  var id=t.dataset.open||t.dataset.edit||t.dataset.dup||t.dataset.del;
+  var d=DATA.find(function(x){return x.id===id});if(!d)return;
+  if(t.dataset.open){ui.open=ui.open===id?null:id;ui.armed=null;drawJournal()}
+  else if(t.dataset.edit){ui.editing=id;loadForm(d,false);$("editBanner").hidden=false;$("editTxt").textContent="Modification de "+d.num;$("save").textContent="Mettre à jour";setTab("saisie")}
+  else if(t.dataset.dup){ui.editing=null;loadForm(d,true);$("editBanner").hidden=true;$("save").textContent="Enregistrer le prélèvement";setTab("saisie");toast("Même point, nouvelle mesure")}
+  else if(t.dataset.del){
+    if(ui.armed===id){DATA=DATA.filter(function(x){return x.id!==id});saveData();ui.armed=null;ui.open=null;updateSub();drawJournal();toast("Supprimé")}
+    else{ui.armed=id;drawJournal()}
+  }
+});
+
+["agent","clMin","clMax","phMin","phMax","turbMax"].forEach(function(k){
+  var el=$(k);el.value=S[k]==null?"":S[k];
+  el.addEventListener("input",function(){
+    if(k==="agent")S.agent=el.value.trim();
+    else{var n=num(el.value);if(n!=null)S[k]=n}
+    saveSettings();refreshFlags();
+  });
+});
+$("bkExp").addEventListener("click",function(){
+  downloadBlob(new Blob([JSON.stringify({v:1,settings:S,data:DATA})],{type:"application/json"}),"sauvegarde_prelevements_"+nowLocal().slice(0,10)+".json");
+});
+$("bkImpBtn").addEventListener("click",function(){$("bkImp").click()});
+$("bkImp").addEventListener("change",function(){
+  var f=$("bkImp").files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var j=JSON.parse(r.result),have={};DATA.forEach(function(d){have[d.id]=1});var add=0;
+      (j.data||[]).forEach(function(d){if(d&&d.id&&d.ts&&!have[d.id]){DATA.push(d);add++}});
+      saveData();drawCommunes();updateSub();toast(add+" prélèvements restaurés");
+    }catch(e){toast("Fichier illisible")}
+  };
+  r.readAsText(f);$("bkImp").value="";
+});
+$("wipe").addEventListener("click",function(){
+  if(!ui.wipeArmed){ui.wipeArmed=true;$("wipe").textContent="Appuyez encore pour tout effacer";$("wipe").classList.add("armed");
+    setTimeout(function(){ui.wipeArmed=false;$("wipe").textContent="Tout effacer";$("wipe").classList.remove("armed")},4000);return}
+  DATA=[];saveData();ui.wipeArmed=false;$("wipe").textContent="Tout effacer";$("wipe").classList.remove("armed");
+  drawCommunes();updateSub();toast("Données effacées");
+});
+
+var deferred=null;
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferred=e;$("install").hidden=false});
+$("install").addEventListener("click",function(){if(!deferred)return;deferred.prompt();deferred=null;$("install").hidden=true});
+function net(){var n=$("net");n.textContent=navigator.onLine?"Enregistré sur le téléphone":"Hors ligne · tout est gardé";n.classList.toggle("off",!navigator.onLine)}
+window.addEventListener("online",net);window.addEventListener("offline",net);
+
+/* ---------- start ---------- */
+drawCommunes();drawTypes();drawAnalyses();
+var rc=recentCommunes();if(rc.length)$("commune").value=rc[0];
+drawRecent();drawAddresses();
+resetForm();net();updateSub();setTab("saisie");
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")){
+  navigator.serviceWorker.register("sw.js").catch(function(){});
+}
+getGPS(true);
+})();
+</script>
+</body>
+</html>
